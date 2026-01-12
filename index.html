@@ -3,40 +3,60 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的记账本</title>
-    <!-- 引入样式表 -->
+    <title>智能记账本 V2</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
     <div class="container">
-        <h1>💰 记账本</h1>
-        
-        <!-- 统计区域 -->
-        <div class="balance-card">
-            <h3>总支出</h3>
-            <p id="total-amount">¥0.00</p>
+        <header>
+            <h1>🤖 智能记账本</h1>
+            <div class="balance-card">
+                <h3>总支出 (本月)</h3>
+                <p id="total-amount">¥0.00</p>
+            </div>
+        </header>
+
+        <!-- AI 智能输入区 -->
+        <div class="ai-section">
+            <textarea id="ai-input" placeholder="✨ 试试 AI 记账！&#10;输入如：打车回家35元，或者 晚上吃了肯德基花了39.5"></textarea>
+            <button id="ai-btn" class="ai-btn">✨ AI 识别并自动保存</button>
         </div>
 
-        <!-- 输入区域 -->
+        <div class="divider"><span>或者手动输入</span></div>
+
+        <!-- 手动输入区域 -->
         <div class="input-group">
-            <input type="date" id="date-input">
-            <input type="text" id="desc-input" placeholder="买了什么？(如: 午餐)">
-            <input type="number" id="amount-input" placeholder="金额 (元)">
-            <button id="add-btn">记一笔</button>
+            <div class="row">
+                <!-- 精确到分钟的时间选择 -->
+                <input type="datetime-local" id="date-input">
+                <select id="category-input">
+                    <option value="餐饮">🍔 餐饮</option>
+                    <option value="交通">🚗 交通</option>
+                    <option value="购物">🛍️ 购物</option>
+                    <option value="娱乐">🎮 娱乐</option>
+                    <option value="居住">🏠 居住</option>
+                    <option value="工资">💰 工资(收入)</option>
+                    <option value="其他">📝 其他</option>
+                </select>
+            </div>
+            <input type="text" id="desc-input" placeholder="备注 (如: 牛肉面)">
+            <input type="number" id="amount-input" placeholder="金额" step="0.01">
+            
+            <button id="save-btn" class="save-btn">记一笔</button>
+            <button id="cancel-edit-btn" class="cancel-btn" style="display:none;">取消修改</button>
         </div>
 
         <!-- 列表区域 -->
         <div class="transaction-list">
-            <h3>最近记录</h3>
+            <h3>📝 账单明细</h3>
             <ul id="list">
-                <!-- 这里的数据会由 JS 自动生成 -->
-                <li class="loading-text">正在加载数据...</li>
+                <li style="text-align:center; color:#999; padding:20px;">正在加载数据...</li>
             </ul>
         </div>
     </div>
 
-    <!-- 引入逻辑脚本 (注意 type="module") -->
+    <!-- 核心逻辑 -->
     <script type="module" src="app.js"></script>
 </body>
 </html>
