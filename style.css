@@ -1,1 +1,74 @@
+body {
+    font-family: 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f4f4f8;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
 
+.container {
+    max-width: 400px; /* 限制宽度，模拟手机效果 */
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+h1 { text-align: center; color: #333; }
+
+/* 余额卡片 */
+.balance-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.balance-card h3 { margin: 0; font-weight: normal; font-size: 14px; opacity: 0.8; }
+.balance-card p { margin: 5px 0 0; font-size: 32px; font-weight: bold; }
+
+/* 输入框样式 */
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+input {
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 16px;
+}
+
+button {
+    padding: 12px;
+    background-color: #333;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: background 0.3s;
+}
+
+button:hover { background-color: #555; }
+
+/* 列表样式 */
+ul { list-style-type: none; padding: 0; }
+
+li {
+    background-color: #fff;
+    border-bottom: 1px solid #eee;
+    padding: 10px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+li span.info { font-size: 14px; color: #666; }
+li span.money { font-weight: bold; font-size: 16px; }
