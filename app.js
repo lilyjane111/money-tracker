@@ -3,7 +3,7 @@ import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-// ---------------- 配置区域 (已保留你的 Key) ----------------
+// ---------------- 配置区域 (已填入你的密钥) ----------------
 const firebaseConfig = {
     apiKey: "AIzaSyCksVETnuOvJ4PI8O_stW_cnnzj1VUjVV8",
     authDomain: "moneytracker-49e63.firebaseapp.com",
@@ -19,7 +19,6 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-// DOM 元素
 const els = {
     date: document.getElementById('date-input'),
     cat: document.getElementById('category-input'),
@@ -37,9 +36,8 @@ const els = {
 };
 
 let editingId = null;
-let expenseChart = null; // 图表实例
+let expenseChart = null;
 
-// 默认时间
 const setNow = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -47,28 +45,28 @@ const setNow = () => {
 };
 setNow();
 
-// ================= AI 逻辑 (保留并适配) =================
+// ================= AI 逻辑 =================
 els.aiBtn.addEventListener('click', async () => {
     const text = els.aiInput.value.trim();
     if (!text) { alert("请先输入内容"); return; }
     
     const originalText = els.aiBtn.innerText;
-    els.aiBtn.innerText = "🤖 分析中...";
+    els.aiBtn.innerText = "⏳ 分析中...";
     els.aiBtn.disabled = true;
 
     try {
         const nowStr = new Date().toLocaleString('zh-CN', { hour12: false });
-        // 使用 gemini-1.5-flash 最稳
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
+        // 使用你确认过的模型
+        const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview"});
         
         const prompt = `
             你是一个记账助手。参考时间：${nowStr}。
             用户输入："${text}"。
-            请提取：
+            请提取JSON:
             1. amount (数字)
             2. category (从[餐饮,交通,购物,娱乐,居住,工资,其他]选，外卖日用品算购物，饭菜算餐饮)
             3. desc (简短备注)
-            4. date (YYYY-MM-DDTHH:mm，推算时间，未提及用当前)
+            4. date (YYYY-MM-DDTHH:mm，推算时间)
             返回JSON: {"amount":0,"category":"","desc":"","date":""}
         `;
         
@@ -86,7 +84,7 @@ els.aiBtn.addEventListener('click', async () => {
 
     } catch (e) {
         console.error(e);
-        alert("AI 识别失败");
+        alert("AI 识别失败，请检查网络");
     } finally {
         els.aiBtn.innerText = originalText;
         els.aiBtn.disabled = false;
@@ -104,10 +102,7 @@ async function saveTransaction() {
     
     els.saveBtn.disabled = true;
     try {
-        const payload = {
-            amount, desc, category, date: dateVal,
-            timestamp: new Date(dateVal).getTime()
-        };
+        const payload = { amount, desc, category, date: dateVal, timestamp: new Date(dateVal).getTime() };
 
         if (editingId) {
             await updateDoc(doc(db, "expenses", editingId), payload);
@@ -131,16 +126,12 @@ function resetForm() {
 
 els.saveBtn.addEventListener('click', saveTransaction);
 
-// ================= 核心：数据监听 & 图表渲染 =================
+// ================= 渲染列表 (关键：修复图标) =================
 const q = query(collection(db, "expenses"), orderBy("timestamp", "desc"));
 
 onSnapshot(q, (snapshot) => {
     els.list.innerHTML = "";
-    
-    let totalExp = 0;
-    let totalInc = 0;
-    
-    // 用于图表的数据统计
+    let totalExp = 0, totalInc = 0;
     const catStats = { "餐饮":0, "交通":0, "购物":0, "娱乐":0, "居住":0, "其他":0 };
 
     if(snapshot.empty) els.list.innerHTML = '<li style="justify-content:center;color:#ccc;padding:20px;">暂无记录</li>';
@@ -150,41 +141,35 @@ onSnapshot(q, (snapshot) => {
         const id = docSnap.id;
         const val = Math.abs(data.amount);
 
-        // 统计总数
-        if (data.category === '工资') {
-            totalInc += val;
-        } else {
-            totalExp += val;
-            // 统计分类支出（用于图表）
-            if (catStats[data.category] !== undefined) {
-                catStats[data.category] += val;
-            } else {
-                catStats["其他"] += val;
-            }
+        if (data.category === '工资') { totalInc += val; } 
+        else { 
+            totalExp += val; 
+            if (catStats[data.category] !== undefined) catStats[data.category] += val; 
+            else catStats["其他"] += val;
         }
 
-        // 渲染列表项
         const dateObj = new Date(data.date);
         const timeStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
         const emojiMap = { "餐饮":"🍔", "交通":"🚗", "购物":"🛍️", "娱乐":"🎮", "居住":"🏠", "工资":"💰", "其他":"📝" };
         const isInc = data.category === '工资';
 
         const li = document.createElement('li');
+        // 这里把按钮改成了 Emoji 文本，不再依赖 Font Awesome
         li.innerHTML = `
-            <div class="li-content">
+            <div class="li-left">
                 <div class="li-icon">${emojiMap[data.category]||'📝'}</div>
-                <div class="li-text">
+                <div class="li-info">
                     <h5>${data.desc}</h5>
                     <span>${timeStr} · ${data.category}</span>
                 </div>
             </div>
-            <div class="li-amount">
-                <span class="amount-num" style="color:${isInc?'var(--success)':'var(--text)'}">
+            <div class="li-right">
+                <div class="amount" style="color:${isInc?'var(--success)':'var(--text)'}">
                     ${isInc?'+':'-'}¥${val.toFixed(2)}
-                </span>
-                <div class="amount-actions">
-                    <button class="btn-xs btn-edit">改</button>
-                    <button class="btn-xs btn-del">删</button>
+                </div>
+                <div class="btns">
+                    <button class="btn-txt btn-edit">✏️</button>
+                    <button class="btn-txt btn-del">🗑️</button>
                 </div>
             </div>
         `;
@@ -196,25 +181,18 @@ onSnapshot(q, (snapshot) => {
         });
     });
 
-    // 更新顶部卡片
     els.statExp.innerText = `¥${totalExp.toFixed(2)}`;
     els.statInc.innerText = `¥${totalInc.toFixed(2)}`;
     els.statBal.innerText = `¥${(totalInc - totalExp).toFixed(2)}`;
-
-    // 更新图表
     updateChart(catStats);
 });
 
-// ================= 图表绘制逻辑 =================
 function updateChart(stats) {
-    // 准备数据
     const labels = Object.keys(stats);
     const data = Object.values(stats);
-    
-    // 如果还没创建图表，新建一个
     if (!expenseChart) {
         expenseChart = new Chart(els.expenseChartCanvas, {
-            type: 'doughnut', // 甜甜圈图
+            type: 'doughnut',
             data: {
                 labels: labels,
                 datasets: [{
@@ -226,22 +204,18 @@ function updateChart(stats) {
             options: {
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {
-                    legend: { position: 'right', labels: { boxWidth: 10 } }
-                }
+                plugins: { legend: { position: 'right', labels: { boxWidth: 10 } } }
             }
         });
     } else {
-        // 如果已有图表，只更新数据
         expenseChart.data.datasets[0].data = data;
         expenseChart.update();
     }
 }
 
-// 编辑模式逻辑
 function enterEditMode(id, data) {
     editingId = id;
-    els.saveBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>'; // 变成更新图标
+    els.saveBtn.innerText = '🆗'; // 变成 Emoji
     els.saveBtn.classList.add("update-mode");
     els.cancelBtn.style.display = "inline-block";
     els.amount.value = data.amount;
@@ -252,7 +226,7 @@ function enterEditMode(id, data) {
 
 function exitEditMode() {
     editingId = null;
-    els.saveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
+    els.saveBtn.innerText = '✔';
     els.saveBtn.classList.remove("update-mode");
     els.cancelBtn.style.display = "none";
     resetForm();
