@@ -5,7 +5,7 @@ from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
 // ------------------------------------------------------------------
-// 2. 配置区域 (已填好你的 Key)
+// 2. 配置区域
 // ------------------------------------------------------------------
 const firebaseConfig = {
     apiKey: "AIzaSyCksVETnuOvJ4PI8O_stW_cnnzj1VUjVV8",
@@ -38,20 +38,19 @@ const els = {
     total: document.getElementById('total-amount')
 };
 
-// 状态变量：当前是否正在编辑模式 (null 表示新增模式，有 ID 表示正在编辑这个 ID)
+// 状态变量
 let editingId = null;
 
-// 设置默认时间为当前时间的函数 (修正时区偏移)
+// 设置默认时间
 const setNow = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     els.date.value = now.toISOString().slice(0, 16);
 };
-// 初始化时先调用一次
 setNow();
 
 // ==========================================
-// 🤖 功能一：Gemini AI 智能记账
+// 🤖 功能一：AI 智能记账 (已修复模型名称)
 // ==========================================
 els.aiBtn.addEventListener('click', async () => {
     const text = els.aiInput.value.trim();
@@ -60,14 +59,14 @@ els.aiBtn.addEventListener('click', async () => {
         return;
     }
 
-    // 按钮变身
     const originalBtnText = els.aiBtn.innerText;
     els.aiBtn.innerText = "🤖 AI 正在分析...";
     els.aiBtn.disabled = true;
 
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-pro"});
-        // Prompt (提示词)：教 AI 怎么做
+        // 注意：不要带 "models/" 前缀，直接写名字即可
+const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview"});
+        
         const prompt = `
             你是一个记账助手。请分析用户的话，提取：金额(纯数字)、分类(必须从[餐饮,交通,购物,娱乐,居住,工资,其他]中选最符合的一个)、备注(简短)。
             用户输入："${text}"
@@ -80,33 +79,32 @@ els.aiBtn.addEventListener('click', async () => {
         const response = await result.response;
         let jsonStr = response.text();
         
-        // 清理 AI 可能返回的 ```json ``` 标记
         jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
         const data = JSON.parse(jsonStr);
 
-        // 填入输入框
         els.amount.value = data.amount;
         els.cat.value = data.category;
         els.desc.value = data.desc;
         
-        // 自动触发保存
         await saveTransaction();
-        
-        // 清空 AI 输入框
         els.aiInput.value = ''; 
 
     } catch (error) {
         console.error("AI Error:", error);
-        alert("AI 识别失败，请检查网络或手动输入。");
+        // 如果是 404，提示用户检查模型
+        if(error.toString().includes("404")) {
+             alert("AI 模型连接错误。虽然连上了 Google，但模型名称可能不对。请联系开发者。");
+        } else {
+             alert("AI 识别失败，请手动输入。");
+        }
     } finally {
-        // 恢复按钮
         els.aiBtn.innerText = originalBtnText;
         els.aiBtn.disabled = false;
     }
 });
 
 // ==========================================
-// 💾 功能二：保存/更新数据 (支持回车)
+// 💾 功能二：保存/更新数据
 // ==========================================
 async function saveTransaction() {
     const amount = parseFloat(els.amount.value);
@@ -119,9 +117,7 @@ async function saveTransaction() {
         return;
     }
 
-    // 按钮防止重复点击
     els.saveBtn.disabled = true;
-    const btnText = els.saveBtn.innerText;
     els.saveBtn.innerText = "保存中...";
 
     try {
@@ -129,23 +125,18 @@ async function saveTransaction() {
             amount: amount,
             desc: desc,
             category: category, 
-            date: dateVal, // 存字符串 "2023-10-10T12:00"
-            timestamp: new Date(dateVal).getTime() // 存时间戳用于排序
+            date: dateVal, 
+            timestamp: new Date(dateVal).getTime() 
         };
 
         if (editingId) {
-            // --- 更新模式 ---
             await updateDoc(doc(db, "expenses", editingId), payload);
-            console.log("更新成功");
-            exitEditMode(); // 退出编辑模式
+            exitEditMode(); 
         } else {
-            // --- 新增模式 ---
             await addDoc(collection(db, "expenses"), {
                 ...payload,
                 createdAt: Timestamp.now()
             });
-            console.log("新增成功");
-            // 重置表单
             els.amount.value = '';
             els.desc.value = '';
             setNow();
@@ -160,10 +151,7 @@ async function saveTransaction() {
     }
 }
 
-// 绑定点击事件
 els.saveBtn.addEventListener('click', saveTransaction);
-
-// 绑定回车事件 (在备注或金额框按回车直接保存)
 [els.desc, els.amount].forEach(input => {
     input.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') saveTransaction();
@@ -171,7 +159,7 @@ els.saveBtn.addEventListener('click', saveTransaction);
 });
 
 // ==========================================
-// 📝 功能三：实时列表渲染 & 编辑 & 删除
+// 📝 功能三：列表渲染 & 编辑 & 删除
 // ==========================================
 const q = query(collection(db, "expenses"), orderBy("timestamp", "desc"));
 
@@ -187,15 +175,12 @@ onSnapshot(q, (snapshot) => {
         const data = docSnap.data();
         const id = docSnap.id;
         
-        // 计算总金额
-        // 如果是工资，不计入支出（或者反向计算，这里简单累加，视觉上区分）
         if (data.category !== '工资') {
             total += Math.abs(data.amount);
         } else {
-            total -= Math.abs(data.amount); // 收入抵消支出
+            total -= Math.abs(data.amount);
         }
 
-        // 格式化时间：10月24日 14:30
         const dateObj = new Date(data.date);
         const month = dateObj.getMonth() + 1;
         const day = dateObj.getDate();
@@ -203,16 +188,13 @@ onSnapshot(q, (snapshot) => {
         const min = String(dateObj.getMinutes()).padStart(2, '0');
         const timeStr = `${month}月${day}日 ${hour}:${min}`;
 
-        // 分类图标映射
         const emojiMap = { "餐饮":"🍔", "交通":"🚗", "购物":"🛍️", "娱乐":"🎮", "居住":"🏠", "工资":"💰", "其他":"📝" };
         const emoji = emojiMap[data.category] || "📝";
         
-        // 金额颜色：收入绿色，支出黑色
         const isIncome = data.category === '工资';
         const color = isIncome ? '#28a745' : '#333';
         const prefix = isIncome ? '+' : '';
 
-        // 创建列表项
         const li = document.createElement('li');
         li.innerHTML = `
             <div class="li-left">
@@ -234,16 +216,13 @@ onSnapshot(q, (snapshot) => {
         `;
         els.list.appendChild(li);
 
-        // 绑定该行的按钮事件
         li.querySelector('.btn-edit').addEventListener('click', () => enterEditMode(id, data));
         li.querySelector('.btn-del').addEventListener('click', () => deleteItem(id));
     });
 
-    // 更新顶部总额
     els.total.innerText = `¥${total.toFixed(2)}`;
 });
 
-// --- 删除逻辑 ---
 async function deleteItem(id) {
     if (confirm("确定要删除这条记录吗？")) {
         await deleteDoc(doc(db, "expenses", id));
@@ -251,35 +230,26 @@ async function deleteItem(id) {
     }
 }
 
-// --- 进入编辑模式 ---
 function enterEditMode(id, data) {
     editingId = id;
     els.saveBtn.innerText = "确认修改";
     els.saveBtn.classList.add("update-mode");
     els.cancelBtn.style.display = "inline-block";
-
-    // 把数据填回输入框
     els.amount.value = data.amount;
     els.desc.value = data.desc;
     els.cat.value = data.category;
     els.date.value = data.date;
-
-    // 滚回顶部
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// --- 退出编辑模式 ---
 function exitEditMode() {
     editingId = null;
     els.saveBtn.innerText = "记一笔";
     els.saveBtn.classList.remove("update-mode");
     els.cancelBtn.style.display = "none";
-    
-    // 清空并重置时间
     els.amount.value = '';
     els.desc.value = '';
     setNow();
 }
 
-// 绑定取消按钮
 els.cancelBtn.addEventListener('click', exitEditMode);
