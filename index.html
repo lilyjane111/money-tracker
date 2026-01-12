@@ -3,60 +3,118 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智能记账本 V2</title>
+    <title>我的财务指挥舱</title>
+    <!-- 引入图标库 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <!-- 引入图表库 -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
-    <div class="container">
-        <header>
-            <h1>🤖 智能记账本</h1>
-            <div class="balance-card">
-                <h3>总支出 (本月)</h3>
-                <p id="total-amount">¥0.00</p>
+    <div class="dashboard-container">
+        <!-- 侧边栏/顶部栏 -->
+        <header class="top-bar">
+            <div class="logo">
+                <i class="fa-solid fa-wallet"></i> 财务指挥舱
+            </div>
+            <div class="user-profile">
+                <span>2026年</span> <!-- 这里的年份可以是动态的 -->
             </div>
         </header>
 
-        <!-- AI 智能输入区 -->
-        <div class="ai-section">
-            <textarea id="ai-input" placeholder="✨ 试试 AI 记账！&#10;输入如：打车回家35元，或者 晚上吃了肯德基花了39.5"></textarea>
-            <button id="ai-btn" class="ai-btn">✨ AI 识别并自动保存</button>
-        </div>
-
-        <div class="divider"><span>或者手动输入</span></div>
-
-        <!-- 手动输入区域 -->
-        <div class="input-group">
-            <div class="row">
-                <!-- 精确到分钟的时间选择 -->
-                <input type="datetime-local" id="date-input">
-                <select id="category-input">
-                    <option value="餐饮">🍔 餐饮</option>
-                    <option value="交通">🚗 交通</option>
-                    <option value="购物">🛍️ 购物</option>
-                    <option value="娱乐">🎮 娱乐</option>
-                    <option value="居住">🏠 居住</option>
-                    <option value="工资">💰 工资(收入)</option>
-                    <option value="其他">📝 其他</option>
-                </select>
+        <!-- 核心统计卡片 -->
+        <div class="stats-row">
+            <div class="card stat-card expense">
+                <div class="stat-icon"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                <div class="stat-info">
+                    <h4>本月支出</h4>
+                    <p id="stat-expense">¥0.00</p>
+                </div>
             </div>
-            <input type="text" id="desc-input" placeholder="备注 (如: 牛肉面)">
-            <input type="number" id="amount-input" placeholder="金额" step="0.01">
-            
-            <button id="save-btn" class="save-btn">记一笔</button>
-            <button id="cancel-edit-btn" class="cancel-btn" style="display:none;">取消修改</button>
+            <div class="card stat-card income">
+                <div class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                <div class="stat-info">
+                    <h4>本月收入</h4>
+                    <p id="stat-income">¥0.00</p>
+                </div>
+            </div>
+            <div class="card stat-card balance">
+                <div class="stat-icon"><i class="fa-solid fa-piggy-bank"></i></div>
+                <div class="stat-info">
+                    <h4>当前结余</h4>
+                    <p id="stat-balance">¥0.00</p>
+                </div>
+            </div>
         </div>
 
-        <!-- 列表区域 -->
-        <div class="transaction-list">
-            <h3>📝 账单明细</h3>
-            <ul id="list">
-                <li style="text-align:center; color:#999; padding:20px;">正在加载数据...</li>
-            </ul>
+        <!-- 主内容区：左右分栏 -->
+        <div class="main-grid">
+            
+            <!-- 左列：AI输入 + 图表 -->
+            <div class="left-col">
+                <!-- AI 区域 -->
+                <div class="card ai-card">
+                    <div class="card-header">
+                        <h3><i class="fa-solid fa-robot"></i> AI 智能记账</h3>
+                    </div>
+                    <textarea id="ai-input" placeholder="✨ 告诉我：昨天晚上请朋友吃饭花了400元..."></textarea>
+                    <button id="ai-btn" class="ai-btn">分析并入账</button>
+                </div>
+
+                <!-- 手动输入折叠区 (简单版) -->
+                <div class="card input-card">
+                    <div class="card-header">
+                        <h3>📝 手动补录</h3>
+                    </div>
+                    <div class="manual-form">
+                        <div class="form-row">
+                            <input type="datetime-local" id="date-input">
+                            <select id="category-input">
+                                <option value="餐饮">🍔 餐饮</option>
+                                <option value="交通">🚗 交通</option>
+                                <option value="购物">🛍️ 购物</option>
+                                <option value="娱乐">🎮 娱乐</option>
+                                <option value="居住">🏠 居住</option>
+                                <option value="工资">💰 工资</option>
+                                <option value="其他">📝 其他</option>
+                            </select>
+                        </div>
+                        <div class="form-row">
+                            <input type="text" id="desc-input" placeholder="备注" style="flex:2">
+                            <input type="number" id="amount-input" placeholder="¥" style="flex:1">
+                            <button id="save-btn"><i class="fa-solid fa-check"></i></button>
+                            <button id="cancel-edit-btn" style="display:none">取消</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 图表区域 -->
+                <div class="card chart-card">
+                    <div class="card-header">
+                        <h3>📊 支出构成</h3>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="expenseChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右列：账单列表 (定高滚动) -->
+            <div class="right-col">
+                <div class="card list-card">
+                    <div class="card-header">
+                        <h3>📜 近期账单</h3>
+                    </div>
+                    <ul id="list" class="scrollable-list">
+                        <li class="empty-tip">加载中...</li>
+                    </ul>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- 核心逻辑 -->
-    <script type="module" src="app.js"></script>
+    <!-- 逻辑脚本 -->
+    <script type="module" src="app.js?v=V3_dashboard"></script>
 </body>
 </html>
