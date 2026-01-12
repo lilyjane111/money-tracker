@@ -1,12 +1,9 @@
-// 1. 引入 Firebase 和 Google AI
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc, doc, updateDoc, Timestamp } 
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-// ------------------------------------------------------------------
-// 2. 配置区域
-// ------------------------------------------------------------------
+// ---------------- 配置区域 (已保留你的 Key) ----------------
 const firebaseConfig = {
     apiKey: "AIzaSyCksVETnuOvJ4PI8O_stW_cnnzj1VUjVV8",
     authDomain: "moneytracker-49e63.firebaseapp.com",
@@ -15,16 +12,14 @@ const firebaseConfig = {
     messagingSenderId: "58282938382",
     appId: "1:58282938382:web:eedff47ed4f87a2fdb2c5f"
 };
-
-// 你的 Gemini API Key
 const GEMINI_API_KEY = "AIzaSyAaJ74fB9wmOmPkgiEqs31_PgG0UykhejY";
 
-// 3. 初始化服务
+// ---------------- 初始化 ----------------
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-// 4. 获取页面元素
+// DOM 元素
 const els = {
     date: document.getElementById('date-input'),
     cat: document.getElementById('category-input'),
@@ -35,13 +30,16 @@ const els = {
     aiInput: document.getElementById('ai-input'),
     aiBtn: document.getElementById('ai-btn'),
     list: document.getElementById('list'),
-    total: document.getElementById('total-amount')
+    statExp: document.getElementById('stat-expense'),
+    statInc: document.getElementById('stat-income'),
+    statBal: document.getElementById('stat-balance'),
+    expenseChartCanvas: document.getElementById('expenseChart')
 };
 
-// 状态变量
 let editingId = null;
+let expenseChart = null; // 图表实例
 
-// 设置默认时间
+// 默认时间
 const setNow = () => {
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
@@ -49,207 +47,215 @@ const setNow = () => {
 };
 setNow();
 
-// ==========================================
-// 🤖 功能一：AI 智能记账 (已修复模型名称)
-// ==========================================
+// ================= AI 逻辑 (保留并适配) =================
 els.aiBtn.addEventListener('click', async () => {
     const text = els.aiInput.value.trim();
-    if (!text) {
-        alert("请先输入内容，例如：刚刚买奶茶花了 18 元");
-        return;
-    }
-
-    const originalBtnText = els.aiBtn.innerText;
-    els.aiBtn.innerText = "🤖 AI 正在分析...";
+    if (!text) { alert("请先输入内容"); return; }
+    
+    const originalText = els.aiBtn.innerText;
+    els.aiBtn.innerText = "🤖 分析中...";
     els.aiBtn.disabled = true;
 
     try {
-        // 注意：不要带 "models/" 前缀，直接写名字即可
-const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview"});
+        const nowStr = new Date().toLocaleString('zh-CN', { hour12: false });
+        // 使用 gemini-1.5-flash 最稳
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash"});
         
         const prompt = `
-            你是一个记账助手。请分析用户的话，提取：金额(纯数字)、分类(必须从[餐饮,交通,购物,娱乐,居住,工资,其他]中选最符合的一个)、备注(简短)。
-            用户输入："${text}"
-            
-            请直接返回JSON格式，不要Markdown，格式范例：
-            {"amount": 10.5, "category": "餐饮", "desc": "备注内容"}
+            你是一个记账助手。参考时间：${nowStr}。
+            用户输入："${text}"。
+            请提取：
+            1. amount (数字)
+            2. category (从[餐饮,交通,购物,娱乐,居住,工资,其他]选，外卖日用品算购物，饭菜算餐饮)
+            3. desc (简短备注)
+            4. date (YYYY-MM-DDTHH:mm，推算时间，未提及用当前)
+            返回JSON: {"amount":0,"category":"","desc":"","date":""}
         `;
-
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        let jsonStr = response.text();
         
-        jsonStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+        const result = await model.generateContent(prompt);
+        const jsonStr = (await result.response).text().replace(/```json|```/g, '').trim();
         const data = JSON.parse(jsonStr);
 
         els.amount.value = data.amount;
         els.cat.value = data.category;
         els.desc.value = data.desc;
+        if(data.date) els.date.value = data.date;
         
         await saveTransaction();
-        els.aiInput.value = ''; 
+        els.aiInput.value = '';
 
-    } catch (error) {
-        console.error("AI Error:", error);
-        // 如果是 404，提示用户检查模型
-        if(error.toString().includes("404")) {
-             alert("AI 模型连接错误。虽然连上了 Google，但模型名称可能不对。请联系开发者。");
-        } else {
-             alert("AI 识别失败，请手动输入。");
-        }
+    } catch (e) {
+        console.error(e);
+        alert("AI 识别失败");
     } finally {
-        els.aiBtn.innerText = originalBtnText;
+        els.aiBtn.innerText = originalText;
         els.aiBtn.disabled = false;
     }
 });
 
-// ==========================================
-// 💾 功能二：保存/更新数据
-// ==========================================
+// ================= CRUD 逻辑 =================
 async function saveTransaction() {
     const amount = parseFloat(els.amount.value);
     const desc = els.desc.value.trim();
     const dateVal = els.date.value; 
     const category = els.cat.value;
 
-    if (!amount || !desc) {
-        alert("金额和备注不能为空");
-        return;
-    }
-
+    if (!amount || !desc) { alert("请补全信息"); return; }
+    
     els.saveBtn.disabled = true;
-    els.saveBtn.innerText = "保存中...";
-
     try {
         const payload = {
-            amount: amount,
-            desc: desc,
-            category: category, 
-            date: dateVal, 
-            timestamp: new Date(dateVal).getTime() 
+            amount, desc, category, date: dateVal,
+            timestamp: new Date(dateVal).getTime()
         };
 
         if (editingId) {
             await updateDoc(doc(db, "expenses", editingId), payload);
-            exitEditMode(); 
+            exitEditMode();
         } else {
-            await addDoc(collection(db, "expenses"), {
-                ...payload,
-                createdAt: Timestamp.now()
-            });
-            els.amount.value = '';
-            els.desc.value = '';
-            setNow();
+            await addDoc(collection(db, "expenses"), { ...payload, createdAt: Timestamp.now() });
+            resetForm();
         }
-        
     } catch (e) {
         console.error(e);
-        alert("保存失败，请检查控制台");
     } finally {
         els.saveBtn.disabled = false;
-        if(!editingId) els.saveBtn.innerText = "记一笔";
     }
 }
 
-els.saveBtn.addEventListener('click', saveTransaction);
-[els.desc, els.amount].forEach(input => {
-    input.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') saveTransaction();
-    });
-});
+function resetForm() {
+    els.amount.value = '';
+    els.desc.value = '';
+    setNow();
+}
 
-// ==========================================
-// 📝 功能三：列表渲染 & 编辑 & 删除
-// ==========================================
+els.saveBtn.addEventListener('click', saveTransaction);
+
+// ================= 核心：数据监听 & 图表渲染 =================
 const q = query(collection(db, "expenses"), orderBy("timestamp", "desc"));
 
 onSnapshot(q, (snapshot) => {
     els.list.innerHTML = "";
-    let total = 0;
+    
+    let totalExp = 0;
+    let totalInc = 0;
+    
+    // 用于图表的数据统计
+    const catStats = { "餐饮":0, "交通":0, "购物":0, "娱乐":0, "居住":0, "其他":0 };
 
-    if(snapshot.empty) {
-        els.list.innerHTML = '<li style="justify-content:center;color:#ccc;padding:20px;">还没有记录，快用 AI 记一笔吧！</li>';
-    }
+    if(snapshot.empty) els.list.innerHTML = '<li style="justify-content:center;color:#ccc;padding:20px;">暂无记录</li>';
 
     snapshot.forEach((docSnap) => {
         const data = docSnap.data();
         const id = docSnap.id;
-        
-        if (data.category !== '工资') {
-            total += Math.abs(data.amount);
+        const val = Math.abs(data.amount);
+
+        // 统计总数
+        if (data.category === '工资') {
+            totalInc += val;
         } else {
-            total -= Math.abs(data.amount);
+            totalExp += val;
+            // 统计分类支出（用于图表）
+            if (catStats[data.category] !== undefined) {
+                catStats[data.category] += val;
+            } else {
+                catStats["其他"] += val;
+            }
         }
 
+        // 渲染列表项
         const dateObj = new Date(data.date);
-        const month = dateObj.getMonth() + 1;
-        const day = dateObj.getDate();
-        const hour = String(dateObj.getHours()).padStart(2, '0');
-        const min = String(dateObj.getMinutes()).padStart(2, '0');
-        const timeStr = `${month}月${day}日 ${hour}:${min}`;
-
+        const timeStr = `${dateObj.getMonth()+1}/${dateObj.getDate()} ${String(dateObj.getHours()).padStart(2,'0')}:${String(dateObj.getMinutes()).padStart(2,'0')}`;
         const emojiMap = { "餐饮":"🍔", "交通":"🚗", "购物":"🛍️", "娱乐":"🎮", "居住":"🏠", "工资":"💰", "其他":"📝" };
-        const emoji = emojiMap[data.category] || "📝";
-        
-        const isIncome = data.category === '工资';
-        const color = isIncome ? '#28a745' : '#333';
-        const prefix = isIncome ? '+' : '';
+        const isInc = data.category === '工资';
 
         const li = document.createElement('li');
         li.innerHTML = `
-            <div class="li-left">
-                <div class="category-tag">${emoji}</div>
-                <div class="details">
-                    <span class="desc">${data.desc}</span>
-                    <span class="time">${timeStr} · ${data.category}</span>
+            <div class="li-content">
+                <div class="li-icon">${emojiMap[data.category]||'📝'}</div>
+                <div class="li-text">
+                    <h5>${data.desc}</h5>
+                    <span>${timeStr} · ${data.category}</span>
                 </div>
             </div>
-            <div class="li-right">
-                <span class="money" style="color: ${color}">
-                    ${prefix}¥${Math.abs(data.amount).toFixed(2)}
+            <div class="li-amount">
+                <span class="amount-num" style="color:${isInc?'var(--success)':'var(--text)'}">
+                    ${isInc?'+':'-'}¥${val.toFixed(2)}
                 </span>
-                <div class="actions">
-                    <button class="btn-mini btn-edit">编辑</button>
-                    <button class="btn-mini btn-del">删除</button>
+                <div class="amount-actions">
+                    <button class="btn-xs btn-edit">改</button>
+                    <button class="btn-xs btn-del">删</button>
                 </div>
             </div>
         `;
         els.list.appendChild(li);
 
         li.querySelector('.btn-edit').addEventListener('click', () => enterEditMode(id, data));
-        li.querySelector('.btn-del').addEventListener('click', () => deleteItem(id));
+        li.querySelector('.btn-del').addEventListener('click', async () => {
+            if(confirm('删除?')) await deleteDoc(doc(db, "expenses", id));
+        });
     });
 
-    els.total.innerText = `¥${total.toFixed(2)}`;
+    // 更新顶部卡片
+    els.statExp.innerText = `¥${totalExp.toFixed(2)}`;
+    els.statInc.innerText = `¥${totalInc.toFixed(2)}`;
+    els.statBal.innerText = `¥${(totalInc - totalExp).toFixed(2)}`;
+
+    // 更新图表
+    updateChart(catStats);
 });
 
-async function deleteItem(id) {
-    if (confirm("确定要删除这条记录吗？")) {
-        await deleteDoc(doc(db, "expenses", id));
-        if (editingId === id) exitEditMode();
+// ================= 图表绘制逻辑 =================
+function updateChart(stats) {
+    // 准备数据
+    const labels = Object.keys(stats);
+    const data = Object.values(stats);
+    
+    // 如果还没创建图表，新建一个
+    if (!expenseChart) {
+        expenseChart = new Chart(els.expenseChartCanvas, {
+            type: 'doughnut', // 甜甜圈图
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: ['#ffadad', '#ffd6a5', '#fdffb6', '#caffbf', '#9bf6ff', '#a0c4ff'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { position: 'right', labels: { boxWidth: 10 } }
+                }
+            }
+        });
+    } else {
+        // 如果已有图表，只更新数据
+        expenseChart.data.datasets[0].data = data;
+        expenseChart.update();
     }
 }
 
+// 编辑模式逻辑
 function enterEditMode(id, data) {
     editingId = id;
-    els.saveBtn.innerText = "确认修改";
+    els.saveBtn.innerHTML = '<i class="fa-solid fa-rotate"></i>'; // 变成更新图标
     els.saveBtn.classList.add("update-mode");
     els.cancelBtn.style.display = "inline-block";
     els.amount.value = data.amount;
     els.desc.value = data.desc;
     els.cat.value = data.category;
     els.date.value = data.date;
-    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function exitEditMode() {
     editingId = null;
-    els.saveBtn.innerText = "记一笔";
+    els.saveBtn.innerHTML = '<i class="fa-solid fa-check"></i>';
     els.saveBtn.classList.remove("update-mode");
     els.cancelBtn.style.display = "none";
-    els.amount.value = '';
-    els.desc.value = '';
-    setNow();
+    resetForm();
 }
 
 els.cancelBtn.addEventListener('click', exitEditMode);
