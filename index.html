@@ -1,1 +1,42 @@
-hello
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>我的记账本</title>
+    <!-- 引入样式表 -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <div class="container">
+        <h1>💰 记账本</h1>
+        
+        <!-- 统计区域 -->
+        <div class="balance-card">
+            <h3>总支出</h3>
+            <p id="total-amount">¥0.00</p>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="input-group">
+            <input type="date" id="date-input">
+            <input type="text" id="desc-input" placeholder="买了什么？(如: 午餐)">
+            <input type="number" id="amount-input" placeholder="金额 (元)">
+            <button id="add-btn">记一笔</button>
+        </div>
+
+        <!-- 列表区域 -->
+        <div class="transaction-list">
+            <h3>最近记录</h3>
+            <ul id="list">
+                <!-- 这里的数据会由 JS 自动生成 -->
+                <li class="loading-text">正在加载数据...</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- 引入逻辑脚本 (注意 type="module") -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>
