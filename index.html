@@ -3,9 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>我的财务指挥舱</title>
-    <!-- 引入图标库 -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <title>财务指挥舱</title>
     <link rel="stylesheet" href="style.css">
     <!-- 引入图表库 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -13,34 +11,32 @@
 <body>
 
     <div class="dashboard-container">
-        <!-- 侧边栏/顶部栏 -->
+        <!-- 1. 顶部栏 (变矮一点) -->
         <header class="top-bar">
             <div class="logo">
-                <i class="fa-solid fa-wallet"></i> 财务指挥舱
+                🐋 财务指挥舱
             </div>
-            <div class="user-profile">
-                <span>2026年</span> <!-- 这里的年份可以是动态的 -->
-            </div>
+            <div class="user-profile">2026年</div>
         </header>
 
-        <!-- 核心统计卡片 -->
+        <!-- 2. 核心统计 (更紧凑) -->
         <div class="stats-row">
             <div class="card stat-card expense">
-                <div class="stat-icon"><i class="fa-solid fa-arrow-trend-down"></i></div>
+                <div class="stat-icon">💸</div>
                 <div class="stat-info">
                     <h4>本月支出</h4>
                     <p id="stat-expense">¥0.00</p>
                 </div>
             </div>
             <div class="card stat-card income">
-                <div class="stat-icon"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                <div class="stat-icon">💰</div>
                 <div class="stat-info">
                     <h4>本月收入</h4>
                     <p id="stat-income">¥0.00</p>
                 </div>
             </div>
             <div class="card stat-card balance">
-                <div class="stat-icon"><i class="fa-solid fa-piggy-bank"></i></div>
+                <div class="stat-icon">🏦</div>
                 <div class="stat-info">
                     <h4>当前结余</h4>
                     <p id="stat-balance">¥0.00</p>
@@ -48,24 +44,26 @@
             </div>
         </div>
 
-        <!-- 主内容区：左右分栏 -->
+        <!-- 3. 主内容区 (锁死高度，内部滚动) -->
         <div class="main-grid">
             
-            <!-- 左列：AI输入 + 图表 -->
+            <!-- 左列：操作区 -->
             <div class="left-col">
                 <!-- AI 区域 -->
                 <div class="card ai-card">
                     <div class="card-header">
-                        <h3><i class="fa-solid fa-robot"></i> AI 智能记账</h3>
+                        <h3>🤖 AI 智能记账</h3>
                     </div>
-                    <textarea id="ai-input" placeholder="✨ 告诉我：昨天晚上请朋友吃饭花了400元..."></textarea>
-                    <button id="ai-btn" class="ai-btn">分析并入账</button>
+                    <div class="ai-box">
+                        <textarea id="ai-input" placeholder="告诉我也许刚才花了什么..."></textarea>
+                        <button id="ai-btn" class="ai-btn">✨ 识别并入账</button>
+                    </div>
                 </div>
 
-                <!-- 手动输入折叠区 (简单版) -->
+                <!-- 手动输入 -->
                 <div class="card input-card">
                     <div class="card-header">
-                        <h3>📝 手动补录</h3>
+                        <h3>✍️ 手动补录</h3>
                     </div>
                     <div class="manual-form">
                         <div class="form-row">
@@ -83,13 +81,13 @@
                         <div class="form-row">
                             <input type="text" id="desc-input" placeholder="备注" style="flex:2">
                             <input type="number" id="amount-input" placeholder="¥" style="flex:1">
-                            <button id="save-btn"><i class="fa-solid fa-check"></i></button>
-                            <button id="cancel-edit-btn" style="display:none">取消</button>
+                            <button id="save-btn">✔</button>
+                            <button id="cancel-edit-btn" style="display:none">✕</button>
                         </div>
                     </div>
                 </div>
 
-                <!-- 图表区域 -->
+                <!-- 图表 (自适应填充剩余空间) -->
                 <div class="card chart-card">
                     <div class="card-header">
                         <h3>📊 支出构成</h3>
@@ -100,21 +98,23 @@
                 </div>
             </div>
 
-            <!-- 右列：账单列表 (定高滚动) -->
+            <!-- 右列：账单列表 (独立滚动条) -->
             <div class="right-col">
                 <div class="card list-card">
                     <div class="card-header">
                         <h3>📜 近期账单</h3>
                     </div>
-                    <ul id="list" class="scrollable-list">
-                        <li class="empty-tip">加载中...</li>
-                    </ul>
+                    <!-- 列表容器 -->
+                    <div class="list-wrapper">
+                        <ul id="list" class="scrollable-list">
+                            <li class="empty-tip">加载中...</li>
+                        </ul>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- 逻辑脚本 -->
-    <script type="module" src="app.js?v=V3_dashboard"></script>
+    <script type="module" src="app.js?v=V3_fixed_layout"></script>
 </body>
 </html>
