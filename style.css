@@ -1,191 +1,156 @@
 :root {
-    --primary: #4361ee;
-    --success: #2ec4b6;
-    --danger: #e63946;
-    --bg: #f0f2f5;
-    --card-bg: #ffffff;
-    --text: #2b2d42;
-    --gray: #8d99ae;
+    --primary: #4f46e5;
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --text: #1f2937;
+    --border: #e5e7eb;
 }
 
-/* 1. 锁死整个大页面，禁止全局滚动 */
+/* 1. 全局锁死：绝对没有外层滚动条 */
 body {
-    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
-    background-color: var(--bg);
-    color: var(--text);
-    margin: 0;
-    padding: 15px;
-    height: 100vh; /* 强制视口高度 */
+    margin: 0; padding: 20px;
+    height: 100vh;
     box-sizing: border-box;
-    overflow: hidden; /* 隐藏浏览器自带的滚动条 */
+    background: var(--bg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    color: var(--text);
+    overflow: hidden; /* 关键 */
 }
 
-/* 2. 布局容器：垂直排列 */
+/* 2. 主容器：垂直 Flex，撑满屏幕 */
 .dashboard-container {
+    height: 100%;
     max-width: 1400px;
-    height: 100%; /* 占满 body */
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: 15px;
 }
 
-/* 顶部栏 (不许压缩) */
+/* --- 顶部栏 --- */
 .top-bar {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    flex-shrink: 0; 
+    height: 40px; flex-shrink: 0;
 }
-.logo { font-size: 1.2rem; font-weight: 800; color: var(--primary); display: flex; align-items: center; gap:8px;}
-.user-profile { font-weight: 600; color: var(--gray); font-size: 0.9rem;}
+.logo { font-weight: 800; font-size: 1.2rem; color: var(--primary); }
+.month-picker {
+    padding: 6px 12px; border: 1px solid var(--border);
+    border-radius: 6px; font-family: inherit; cursor: pointer;
+}
 
-/* 统计卡片行 (不许压缩) */
+/* --- 统计条 (超紧凑) --- */
 .stats-row {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
-    flex-shrink: 0; 
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;
+    height: 70px; flex-shrink: 0;
 }
-
-.card {
-    background: var(--card-bg);
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
-    border: 1px solid rgba(0,0,0,0.02);
+.stat-item {
+    background: var(--card); border-radius: 10px;
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 0 20px; border: 1px solid var(--border);
 }
+.stat-item .label { font-size: 0.8rem; color: #6b7280; }
+.stat-item .val { font-size: 1.4rem; font-weight: 700; }
+.expense { color: #ef4444; } .income { color: #10b981; } .balance { color: var(--primary); }
 
-.stat-card { display: flex; align-items: center; gap: 15px; padding: 15px 20px;}
-.stat-icon { font-size: 2rem; }
-.stat-info h4 { margin: 0; color: var(--gray); font-size: 0.8rem; font-weight: normal; }
-.stat-info p { margin: 2px 0 0; font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px;}
-
-/* === 核心修正：主内容网格 === */
+/* --- 核心布局：左右分栏 --- */
 .main-grid {
+    flex: 1; /* 占满剩余高度 */
     display: grid;
-    grid-template-columns: 380px 1fr; /* 左固定，右自适应 */
+    grid-template-columns: 400px 1fr; /* 左侧固定400px，右侧自适应 */
     gap: 15px;
-    /* 关键点：占据剩余空间，但不允许撑破父容器 */
-    flex: 1; 
-    min-height: 0; 
-    overflow: hidden; 
+    min-height: 0; /* 防止溢出 */
 }
 
-/* === 左列：内容太多，必须允许滚动 === */
-.left-col {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-    /* 关键点：高度100%，溢出时显示滚动条 */
+/* === 左侧面板 === */
+.left-panel {
     height: 100%;
-    overflow-y: auto; 
-    padding-right: 5px; /* 给滚动条留点位置 */
+    overflow-y: auto; /* 允许内部滚动 */
+    padding-right: 5px;
 }
+/* 隐藏滚动条但保留功能 */
+.left-panel::-webkit-scrollbar { width: 4px; }
+.left-panel::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
 
-/* === 右列：本身不滚动，内部列表滚动 === */
-.right-col {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden; 
-}
+.card { background: var(--card); border-radius: 12px; border: 1px solid var(--border); overflow: hidden; }
 
-/* 卡片通用 */
-.card-header h3 { margin: 0 0 10px 0; font-size: 1rem; color: var(--text); opacity: 0.8; }
+/* 输入区 (Tab样式) */
+.input-section { margin-bottom: 15px; }
+.tab-header { display: flex; border-bottom: 1px solid var(--border); background: #f9fafb; }
+.tab-btn {
+    flex: 1; padding: 10px; border: none; background: none;
+    cursor: pointer; font-size: 0.9rem; color: #6b7280;
+}
+.tab-btn.active { background: #fff; color: var(--primary); font-weight: 600; border-bottom: 2px solid var(--primary); }
 
-/* AI 输入框 */
-.ai-box { display: flex; flex-direction: column; gap: 8px; }
-textarea {
-    width: 100%; height: 60px; padding: 10px;
-    border: 2px solid #edf2f7; border-radius: 8px;
-    font-family: inherit; resize: none; box-sizing: border-box;
+.input-mode { padding: 15px; display: flex; flex-direction: column; gap: 10px; }
+.row { display: flex; gap: 8px; }
+input, select, textarea {
+    padding: 8px; border: 1px solid var(--border); border-radius: 6px;
+    box-sizing: border-box; font-size: 0.9rem;
 }
-textarea:focus { border-color: var(--primary); outline: none; }
-.ai-btn {
-    width: 100%; padding: 8px;
-    background: var(--primary); color: white;
-    border: none; border-radius: 6px; cursor: pointer; font-weight: 600;
+textarea { height: 70px; resize: none; width: 100%; }
+#save-btn {
+    background: #1f2937; color: white; border: none; border-radius: 6px;
+    padding: 0 15px; cursor: pointer; white-space: nowrap;
 }
+.ai-btn { width: 100%; background: var(--primary); color: white; border: none; border-radius: 6px; padding: 8px; cursor: pointer; }
 
-/* 手动表单 */
-.manual-form { display: flex; flex-direction: column; gap: 8px; }
-.form-row { display: flex; gap: 8px; }
-input, select {
-    padding: 8px; border: 1px solid #edf2f7; border-radius: 6px;
-    font-size: 0.9rem; box-sizing: border-box;
+/* 图表区 */
+.chart-section { padding: 15px; min-height: 250px; display: flex; flex-direction: column; }
+.chart-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; font-weight: 600; }
+.chart-tabs button {
+    border: 1px solid var(--border); background: #fff; cursor: pointer;
+    padding: 2px 8px; font-size: 0.8rem; margin-left: -1px;
 }
-#save-btn, #cancel-edit-btn {
-    padding: 0 15px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold;
-}
-#save-btn { background: #333; color: white; }
-#save-btn.update-mode { background: var(--success); }
-#cancel-edit-btn { background: #eee; color: #666; }
+.chart-tabs button.active { background: var(--primary); color: white; border-color: var(--primary); }
+.chart-body { flex: 1; position: relative; min-height: 200px; }
 
-/* 图表容器 */
-.chart-card {
-    /* 图表可以被压缩，最小高度200 */
-    flex-shrink: 0; 
-    min-height: 250px; 
-    display: flex;
-    flex-direction: column;
-}
-.chart-wrapper {
-    flex: 1;
-    position: relative;
-    /* 修正 ChartJS 的大小自适应问题 */
-    width: 100%;
-    height: 100%; 
-}
-
-/* === 右侧列表区域修正 === */
+/* === 右侧面板 (列表) === */
+.right-panel { height: 100%; overflow: hidden; }
 .list-card {
-    height: 100%; /* 撑满右列 */
-    display: flex;
-    flex-direction: column;
-    padding: 0; 
-    background: var(--card-bg);
+    height: 100%; display: flex; flex-direction: column;
 }
-.list-card .card-header { padding: 15px; border-bottom: 1px solid #f0f0f0; }
 
-/* 列表滚动容器 */
-.list-wrapper {
-    flex: 1; /* 占据剩余高度 */
-    /* 关键点：这里开启滚动，且 min-height: 0 防止撑破 */
-    overflow-y: auto; 
-    min-height: 0; 
-    padding: 0 10px;
+/* 列表头部：搜索与筛选 */
+.list-header {
+    padding: 10px 15px; border-bottom: 1px solid var(--border);
+    display: flex; gap: 10px; background: #f9fafb;
 }
+.search-box { flex: 1; }
+.filter-box { width: 100px; }
+
+/* 列表主体：滚动 */
+.list-body {
+    flex: 1; overflow-y: auto; padding: 0;
+}
+.list-body::-webkit-scrollbar { width: 6px; }
+.list-body::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
 
 ul { list-style: none; padding: 0; margin: 0; }
 li {
     display: flex; align-items: center; justify-content: space-between;
-    padding: 12px 10px; border-bottom: 1px solid #f1f5f9;
+    padding: 12px 15px; border-bottom: 1px solid var(--border);
+    transition: 0.1s;
 }
-li:hover { background: #f8fafc; border-radius: 8px; }
-
-.li-left { display: flex; align-items: center; gap: 12px; }
-.li-icon { font-size: 1.5rem; width: 40px; text-align: center;}
-.li-info h5 { margin: 0; font-size: 0.95rem; font-weight: 600; color: #333; }
-.li-info span { font-size: 0.8rem; color: #888; display: block; margin-top: 2px;}
-
+li:hover { background: #f3f4f6; }
+.li-main { display: flex; gap: 12px; align-items: center; }
+.li-icon { font-size: 1.4rem; width: 30px; text-align: center; }
+.li-content h5 { margin: 0; font-size: 0.95rem; color: #111; }
+.li-content p { margin: 2px 0 0; font-size: 0.8rem; color: #666; }
 .li-right { text-align: right; }
-.amount { font-weight: 700; font-size: 1rem; }
-.btns { opacity: 0; transition: 0.2s; margin-top: 4px; font-size: 0.8rem;}
-li:hover .btns { opacity: 1; }
-.btn-txt { background: none; border: none; cursor: pointer; margin-left: 8px; padding: 2px; font-size: 1rem;} 
+.li-money { font-weight: 700; font-size: 1rem; }
+.li-btns { opacity: 0; margin-top: 4px; font-size: 0.8rem; cursor: pointer; }
+li:hover .li-btns { opacity: 1; }
+.li-btns span { margin-left: 8px; color: #666; }
+.li-btns span:hover { color: var(--primary); }
 
-/* 滚动条美化 */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
-
-/* 响应式：屏幕太矮或太窄时的保护措施 */
-@media (max-width: 800px), (max-height: 600px) {
-    body { height: auto; overflow: auto; } /* 恢复网页整体滚动 */
-    .dashboard-container { height: auto; overflow: visible; }
-    .main-grid { display: flex; flex-direction: column; overflow: visible; }
-    .left-col { height: auto; overflow: visible; }
-    .list-card { height: 500px; } /* 手机上列表固定高度 */
+/* 响应式：手机端 */
+@media (max-width: 800px) {
+    body { height: auto; overflow: auto; padding: 10px; }
+    .dashboard-container { height: auto; }
+    .main-grid { display: flex; flex-direction: column; }
+    .list-card { height: 500px; }
+    .stats-row { height: auto; }
 }
