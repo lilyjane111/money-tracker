@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>财务指挥舱 V8 Ultimate</title>
+    <title>财务指挥舱 V9 Pure</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -12,7 +12,7 @@
     <div class="dashboard-container">
         <!-- 顶部栏 -->
         <header class="top-bar">
-            <div class="logo">🚀 财务指挥舱 V8</div>
+            <div class="logo">🚀 财务指挥舱 V9</div>
             <div class="date-range-picker">
                 <button id="reset-filter-btn" class="reset-btn" style="display:none">↺ 重置图表筛选</button>
                 <div class="date-inputs">
@@ -44,22 +44,15 @@
         <!-- 主布局 -->
         <div class="main-grid">
             
-            <!-- 左侧：操作 & 图表 -->
+            <!-- 左侧：纯净输入 & 图表 -->
             <div class="left-panel">
                 <div class="left-scroll-content">
                     
-                    <!-- 输入区 -->
+                    <!-- 输入区 (无 Tab，直接显示) -->
                     <div class="card input-section">
-                        <div class="tab-header">
-                            <button class="tab-btn active" onclick="switchInput('manual')">✍️ 记账</button>
-                            <button class="tab-btn" onclick="switchInput('ai')">🤖 AI</button>
-                            <button class="tab-btn" onclick="editQuickActions()" style="margin-left:auto; font-size:0.8rem">⚙️ 速记</button>
-                        </div>
+                        <div class="card-title">✍️ 记账</div>
                         
-                        <!-- 手动模式 -->
-                        <div id="mode-manual" class="input-mode">
-                            <div class="quick-tags-area" id="quick-actions-container"></div>
-
+                        <div class="input-form">
                             <div class="row">
                                 <input type="datetime-local" id="date-input" style="width: 190px;">
                                 <select id="category-input" style="flex:1">
@@ -90,7 +83,7 @@
                             </div>
 
                             <div class="tag-manager-row">
-                                <input type="text" id="tags-input" placeholder="🏷️ 标签 (空格分隔，如: 咖啡 早餐)" class="tag-input-field">
+                                <input type="text" id="tags-input" placeholder="🏷️ 标签 (空格分隔)" class="tag-input-field">
                                 <div class="tag-cloud" id="tag-cloud"></div>
                             </div>
 
@@ -99,18 +92,12 @@
                                 <button id="cancel-edit-btn" style="display:none">取消</button>
                             </div>
                         </div>
-
-                        <!-- AI 模式 -->
-                        <div id="mode-ai" class="input-mode" style="display:none">
-                            <textarea id="ai-input" placeholder="例如：刚才朋友转给我200元吃饭钱..."></textarea>
-                            <button id="ai-btn" class="ai-btn">✨ 识别并保存</button>
-                        </div>
                     </div>
 
                     <!-- 图表区 -->
                     <div class="card chart-section">
                         <div class="chart-header">
-                            <span>📊 点击图表可筛选列表</span>
+                            <span>📊 数据分析</span>
                             <div class="chart-tabs">
                                 <button class="c-tab active" onclick="switchChart('pie')">构成</button>
                                 <button class="c-tab" onclick="switchChart('line')">趋势</button>
@@ -127,7 +114,6 @@
             <div class="right-panel">
                 <div class="card list-card">
                     <div class="list-header">
-                        <!-- 新增：全选复选框 (默认隐藏) -->
                         <div id="select-all-wrapper" style="display:none; align-items:center; margin-right:8px;">
                             <input type="checkbox" id="select-all-box">
                         </div>
@@ -151,10 +137,21 @@
                     </div>
                 </div>
             </div>
-
         </div>
     </div>
 
-    <script type="module" src="app.js?v=V8_Fixes"></script>
+    <!-- 自定义确认弹窗 (不再用丑陋的 confirm) -->
+    <div id="custom-modal" class="modal-overlay">
+        <div class="modal-box">
+            <h3 id="modal-title">确认删除?</h3>
+            <p id="modal-desc">此操作无法撤销。</p>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="btn-cancel">取消</button>
+                <button id="modal-confirm" class="btn-confirm">删除</button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="app.js?v=V9_Pure"></script>
 </body>
 </html>
