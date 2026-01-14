@@ -3,7 +3,6 @@ import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, deleteDoc
 from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-// ---------------- 配置 (已保留你的 Key) ----------------
 const firebaseConfig = {
     apiKey: "AIzaSyCksVETnuOvJ4PI8O_stW_cnnzj1VUjVV8",
     authDomain: "moneytracker-49e63.firebaseapp.com",
@@ -18,105 +17,124 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
-// ---------------- 状态管理 ----------------
-let allData = []; // 存所有数据
-let chartInstance = null; // 图表实例
-let currentChartType = 'pie'; // 'pie' 或 'line'
+// --- 状态 ---
+let allData = [];
+let chartInstance = null;
+let currentChartType = 'pie';
 let editingId = null;
 
-// DOM 元素
+// --- 预设快捷项 (你可以自己改这里) ---
+const QUICK_ACTIONS = [
+    { label: "⚡️充电1元", amt: 1, desc: "电动车充电", cat: "交通", tags: "充电" },
+    { label: "☕️冰美式", amt: 9.9, desc: "瑞幸冰美式", cat: "餐饮", tags: "咖啡 瑞幸" },
+    { label: "🍔麦当劳", amt: 30, desc: "麦当劳套餐", cat: "餐饮", tags: "午餐 麦当劳" },
+    { label: "🚇地铁", amt: 5, desc: "通勤地铁", cat: "交通", tags: "地铁 通勤" }
+];
+
 const els = {
     monthFilter: document.getElementById('month-filter'),
     searchInput: document.getElementById('search-input'),
-    catFilter: document.getElementById('filter-cat'),
     list: document.getElementById('list'),
     statExp: document.getElementById('stat-expense'),
     statInc: document.getElementById('stat-income'),
     statBal: document.getElementById('stat-balance'),
     chartCanvas: document.getElementById('mainChart'),
-    // 输入相关
+    // 输入
     date: document.getElementById('date-input'),
     cat: document.getElementById('category-input'),
     desc: document.getElementById('desc-input'),
     amount: document.getElementById('amount-input'),
+    tags: document.getElementById('tags-input'),
     saveBtn: document.getElementById('save-btn'),
     cancelBtn: document.getElementById('cancel-edit-btn'),
     // AI
     aiInput: document.getElementById('ai-input'),
-    aiBtn: document.getElementById('ai-btn')
+    aiBtn: document.getElementById('ai-btn'),
+    quickActions: document.getElementById('quick-actions')
 };
 
-// 1. 初始化月份选择器 (默认为当前月)
+// 1. 初始化
 const now = new Date();
-const currentMonthStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-els.monthFilter.value = currentMonthStr;
+els.monthFilter.value = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
 
-// 2. 监听数据库 (一次性拉取所有，前端做筛选，体验最丝滑)
+// 设置当前时间（只在页面加载时执行一次，保存后不重置！）
+const setTime = () => {
+    const d = new Date();
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+    els.date.value = d.toISOString().slice(0, 16);
+};
+setTime();
+
+// 生成快捷按钮
+els.quickActions.innerHTML = QUICK_ACTIONS.map((q, i) => 
+    `<div class="qt-chip" onclick="applyQuick(${i})">${q.label}</div>`
+).join('');
+
+window.applyQuick = (idx) => {
+    const q = QUICK_ACTIONS[idx];
+    els.amount.value = q.amt;
+    els.desc.value = q.desc;
+    els.cat.value = q.cat;
+    els.tags.value = q.tags;
+};
+
+// 2. 监听数据
 const q = query(collection(db, "expenses"), orderBy("timestamp", "desc"));
-
 onSnapshot(q, (snapshot) => {
     allData = [];
-    snapshot.forEach(doc => {
-        allData.push({ id: doc.id, ...doc.data() });
-    });
-    render(); // 数据回来后渲染
+    snapshot.forEach(doc => allData.push({ id: doc.id, ...doc.data() }));
+    render();
 });
 
-// 3. 渲染核心函数 (筛选 + 统计 + 列表 + 图表)
+// 3. 渲染
 function render() {
-    // A. 获取筛选条件
-    const selectedMonth = els.monthFilter.value; // "2026-01"
+    const selectedMonth = els.monthFilter.value;
     const keyword = els.searchInput.value.trim().toLowerCase();
-    const selectedCat = els.catFilter.value;
 
-    // B. 过滤数据
     const filtered = allData.filter(item => {
-        const itemMonth = item.date.slice(0, 7); // "2026-01-12T..." -> "2026-01"
+        const itemMonth = item.date.slice(0, 7);
         const matchMonth = itemMonth === selectedMonth;
-        const matchKey = item.desc.toLowerCase().includes(keyword);
-        const matchCat = selectedCat === 'all' || item.category === selectedCat;
-        return matchMonth && matchKey && matchCat;
+        // 搜索逻辑：搜备注 OR 搜标签
+        const tagStr = (item.tags || []).join(' ').toLowerCase();
+        const matchKey = item.desc.toLowerCase().includes(keyword) || tagStr.includes(keyword);
+        return matchMonth && matchKey;
     });
 
-    // C. 计算统计
+    // 统计
     let exp = 0, inc = 0;
-    const catMap = {}; // 分类统计 for 饼图
-    const dayMap = {}; // 日期统计 for 折线图
-
-    // 初始化当月每一天 (为了折线图连续)
+    const catMap = {}; 
+    const dayMap = {};
     if (currentChartType === 'line') {
         const [y, m] = selectedMonth.split('-');
-        const daysInMonth = new Date(y, m, 0).getDate();
-        for(let i=1; i<=daysInMonth; i++) dayMap[i] = 0; 
+        const days = new Date(y, m, 0).getDate();
+        for(let i=1; i<=days; i++) dayMap[i] = 0; 
     }
 
     filtered.forEach(item => {
         const val = Math.abs(item.amount);
-        if (item.category === '工资') {
-            inc += val;
-        } else {
+        if (item.category === '工资') inc += val;
+        else {
             exp += val;
-            // 饼图数据
             catMap[item.category] = (catMap[item.category] || 0) + val;
-            // 折线图数据
             const day = new Date(item.date).getDate();
             dayMap[day] = (dayMap[day] || 0) + val;
         }
     });
 
-    // 更新顶部卡片
     els.statExp.innerText = `¥${exp.toFixed(2)}`;
     els.statInc.innerText = `¥${inc.toFixed(2)}`;
     els.statBal.innerText = `¥${(inc - exp).toFixed(2)}`;
 
-    // D. 渲染列表
-    els.list.innerHTML = filtered.length ? '' : '<li style="justify-content:center;color:#999">本月无符合条件的记录</li>';
-    
+    // 列表
+    els.list.innerHTML = filtered.length ? '' : '<li style="justify-content:center;color:#999">空空如也</li>';
     filtered.forEach(item => {
         const d = new Date(item.date);
         const timeStr = `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
         const isInc = item.category === '工资';
         const emoji = { "餐饮":"🍔", "交通":"🚗", "购物":"🛍️", "娱乐":"🎮", "居住":"🏠", "工资":"💰", "其他":"📝" }[item.category] || "📝";
+        
+        // 渲染标签
+        const tagHtml = (item.tags || []).map(t => `<span class="tag-pill">#${t}</span>`).join('');
 
         const li = document.createElement('li');
         li.innerHTML = `
@@ -124,7 +142,8 @@ function render() {
                 <div class="li-icon">${emoji}</div>
                 <div class="li-content">
                     <h5>${item.desc}</h5>
-                    <p>${timeStr} · ${item.category}</p>
+                    <div class="li-tags">${tagHtml}</div>
+                    <div class="li-time">${timeStr} · ${item.category}</div>
                 </div>
             </div>
             <div class="li-right">
@@ -138,23 +157,18 @@ function render() {
             </div>
         `;
         els.list.appendChild(li);
-
         li.querySelector('.btn-edit').addEventListener('click', () => editItem(item));
         li.querySelector('.btn-del').addEventListener('click', () => deleteItem(item.id));
     });
 
-    // E. 渲染图表
     renderChart(catMap, dayMap);
 }
 
-// 4. 图表渲染逻辑
 function renderChart(catMap, dayMap) {
-    if (chartInstance) chartInstance.destroy(); // 销毁旧图表
-
+    if (chartInstance) chartInstance.destroy();
     const ctx = els.chartCanvas.getContext('2d');
     
     if (currentChartType === 'pie') {
-        // --- 饼图 ---
         chartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -168,18 +182,16 @@ function renderChart(catMap, dayMap) {
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right' } } }
         });
     } else {
-        // --- 折线图 (每日趋势) ---
         chartInstance = new Chart(ctx, {
             type: 'line',
             data: {
                 labels: Object.keys(dayMap).map(d => `${d}日`),
                 datasets: [{
-                    label: '每日支出',
+                    label: '支出趋势',
                     data: Object.values(dayMap),
                     borderColor: '#4f46e5',
                     backgroundColor: 'rgba(79, 70, 229, 0.1)',
-                    fill: true,
-                    tension: 0.4
+                    fill: true, tension: 0.4
                 }]
             },
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
@@ -187,42 +199,33 @@ function renderChart(catMap, dayMap) {
     }
 }
 
-// 5. 事件监听 (筛选器变化时自动重绘)
-[els.monthFilter, els.searchInput, els.catFilter].forEach(el => {
-    el.addEventListener('input', render);
-});
+[els.monthFilter, els.searchInput].forEach(el => el.addEventListener('input', render));
 
-// 6. Tab 切换 (手动/AI)
 window.switchInput = (mode) => {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.input-mode').forEach(d => d.style.display = 'none');
     event.target.classList.add('active');
-    document.getElementById(`mode-${mode}`).style.display = mode === 'manual' ? 'block' : 'flex';
+    document.getElementById(`mode-${mode}`).style.display = 'block';
 };
 
-// 7. 图表切换 (饼图/趋势)
 window.switchChart = (type) => {
     currentChartType = type;
     document.querySelectorAll('.c-tab').forEach(b => b.classList.remove('active'));
     event.target.classList.add('active');
-    render(); // 重绘
+    render();
 };
-
-// 8. 数据保存/编辑逻辑 (基本没变)
-const setTime = () => {
-    const d = new Date();
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
-    els.date.value = d.toISOString().slice(0, 16);
-};
-setTime();
 
 els.saveBtn.addEventListener('click', async () => {
     const amount = parseFloat(els.amount.value);
     const desc = els.desc.value;
     const date = els.date.value;
+    // 处理标签：字符串转数组 (空格分开)
+    const tagStr = els.tags.value.trim();
+    const tags = tagStr ? tagStr.split(/\s+/) : [];
+
     if(!amount || !desc) return alert('请补全信息');
     
-    const payload = { amount, desc, category: els.cat.value, date, timestamp: new Date(date).getTime() };
+    const payload = { amount, desc, category: els.cat.value, tags, date, timestamp: new Date(date).getTime() };
     els.saveBtn.disabled = true;
     
     try {
@@ -231,31 +234,45 @@ els.saveBtn.addEventListener('click', async () => {
             cancelEdit();
         } else {
             await addDoc(collection(db, "expenses"), { ...payload, createdAt: Timestamp.now() });
-            resetForm();
+            // 保存成功后：不清空日期！不清空分类！只清空金额、备注和标签
+            els.amount.value = '';
+            els.desc.value = '';
+            els.tags.value = '';
         }
     } catch(e) { console.error(e); } 
     finally { els.saveBtn.disabled = false; }
 });
 
-// AI 逻辑 (保留之前的)
 els.aiBtn.addEventListener('click', async () => {
     const text = els.aiInput.value;
     if(!text) return;
     els.aiBtn.innerText = "⏳..."; els.aiBtn.disabled = true;
     try {
         const model = genAI.getGenerativeModel({ model: "gemini-3-flash-preview"});
-        const prompt = `分析记账: "${text}". 参考时间:${new Date().toLocaleString()}. 返回JSON {"amount":0,"category":"","desc":"","date":"YYYY-MM-DDTHH:mm"}`;
+        // Prompt 升级：要求 AI 打标签
+        const prompt = `分析: "${text}". 参考时间:${new Date().toLocaleString()}. 
+        要求：
+        1. category 从 [餐饮,交通,购物,娱乐,居住,工资,其他] 选。
+        2. tags 是一个字符串数组，提取具体物品或动作，如 ["咖啡","瑞幸"] 或 ["充电","电动车"]。
+        3. date 格式 YYYY-MM-DDTHH:mm。
+        返回JSON: {"amount":0,"category":"","tags":[],"desc":"","date":""}`;
+        
         const res = await model.generateContent(prompt);
         const data = JSON.parse(res.response.text().replace(/```json|```/g,'').trim());
-        els.amount.value = data.amount; els.cat.value = data.category;
-        els.desc.value = data.desc; if(data.date) els.date.value = data.date;
+        
+        els.amount.value = data.amount; 
+        els.cat.value = data.category;
+        els.desc.value = data.desc; 
+        if(data.date) els.date.value = data.date;
+        // 填入标签
+        if(data.tags && Array.isArray(data.tags)) els.tags.value = data.tags.join(' ');
+        
         els.saveBtn.click();
         els.aiInput.value = '';
-    } catch(e) { alert('AI失败'); }
+    } catch(e) { alert('AI失败'); console.log(e); }
     finally { els.aiBtn.innerText = "✨ 识别并保存"; els.aiBtn.disabled = false; }
 });
 
-// 编辑与删除
 function editItem(item) {
     editingId = item.id;
     els.saveBtn.innerText = "确认修改";
@@ -264,22 +281,17 @@ function editItem(item) {
     els.desc.value = item.desc;
     els.cat.value = item.category;
     els.date.value = item.date;
-    // 切换到手动 Tab
+    els.tags.value = (item.tags || []).join(' ');
     switchInput('manual');
-    document.querySelector('.tab-btn').click();
 }
 
-function deleteItem(id) {
-    if(confirm('删除?')) deleteDoc(doc(db, "expenses", id));
-}
+function deleteItem(id) { if(confirm('删除?')) deleteDoc(doc(db, "expenses", id)); }
 
 function cancelEdit() {
     editingId = null;
     els.saveBtn.innerText = "记一笔";
     els.cancelBtn.style.display = "none";
-    resetForm();
+    els.amount.value = ''; els.desc.value = ''; els.tags.value = '';
+    // 这里也不重置日期，保持用户习惯
 }
-function resetForm() {
-    els.amount.value = ''; els.desc.value = ''; setTime();
-}
-window.cancelEdit = cancelEdit; // 暴露给全局按钮
+window.cancelEdit = cancelEdit;
