@@ -3,33 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>财务指挥舱 V6 Pro</title>
+    <title>财务指挥舱 V8 Ultimate</title>
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
     <div class="dashboard-container">
-        <!-- 顶部栏：改为日期范围选择 -->
+        <!-- 顶部栏 -->
         <header class="top-bar">
-            <div class="logo">🚀 财务指挥舱 V6</div>
+            <div class="logo">🚀 财务指挥舱 V8</div>
             <div class="date-range-picker">
-                <label>从</label>
-                <input type="date" id="date-start">
-                <label>到</label>
-                <input type="date" id="date-end">
-                <button id="reset-date-btn">本月</button>
+                <button id="reset-filter-btn" class="reset-btn" style="display:none">↺ 重置图表筛选</button>
+                <div class="date-inputs">
+                    <label>📅</label>
+                    <input type="date" id="date-start">
+                    <span>~</span>
+                    <input type="date" id="date-end">
+                    <button id="reset-date-btn">本月</button>
+                </div>
             </div>
         </header>
 
-        <!-- 统计卡片 (高度压缩) -->
+        <!-- 统计卡片 -->
         <div class="stats-row">
             <div class="stat-item">
-                <span class="label">支出</span>
+                <span class="label">总支出</span>
                 <span class="val expense" id="stat-expense">¥0.00</span>
             </div>
             <div class="stat-item">
-                <span class="label">收入</span>
+                <span class="label">总收入</span>
                 <span class="val income" id="stat-income">¥0.00</span>
             </div>
             <div class="stat-item">
@@ -38,40 +41,46 @@
             </div>
         </div>
 
-        <!-- 主布局：左宽右窄 -->
+        <!-- 主布局 -->
         <div class="main-grid">
             
-            <!-- === 左侧：操作 & 图表 (占据 60%~70%) === -->
+            <!-- 左侧：操作 & 图表 -->
             <div class="left-panel">
                 <div class="left-scroll-content">
                     
                     <!-- 输入区 -->
                     <div class="card input-section">
-                        <!-- 顶部 Tab -->
                         <div class="tab-header">
                             <button class="tab-btn active" onclick="switchInput('manual')">✍️ 记账</button>
                             <button class="tab-btn" onclick="switchInput('ai')">🤖 AI</button>
-                            <button class="tab-btn" onclick="editQuickActions()" style="margin-left:auto; font-size:0.8rem">⚙️ 管理速记</button>
+                            <button class="tab-btn" onclick="editQuickActions()" style="margin-left:auto; font-size:0.8rem">⚙️ 速记</button>
                         </div>
                         
                         <!-- 手动模式 -->
                         <div id="mode-manual" class="input-mode">
-                            <!-- 速记按钮区 -->
-                            <div class="quick-tags-area" id="quick-actions-container">
-                                <!-- JS 生成 -->
-                            </div>
+                            <div class="quick-tags-area" id="quick-actions-container"></div>
 
-                            <!-- 表单行 (紧凑布局) -->
                             <div class="row">
                                 <input type="datetime-local" id="date-input" style="width: 190px;">
                                 <select id="category-input" style="flex:1">
-                                    <option value="餐饮">🍔 餐饮</option>
-                                    <option value="交通">🚗 交通</option>
-                                    <option value="购物">🛍️ 购物</option>
-                                    <option value="娱乐">🎮 娱乐</option>
-                                    <option value="居住">🏠 居住</option>
-                                    <option value="工资">💰 工资</option>
-                                    <option value="其他">📝 其他</option>
+                                    <optgroup label="🔴 支出">
+                                        <option value="餐饮">🍔 餐饮</option>
+                                        <option value="交通">🚗 交通</option>
+                                        <option value="购物">🛍️ 购物</option>
+                                        <option value="娱乐">🎮 娱乐</option>
+                                        <option value="居住">🏠 居住</option>
+                                        <option value="医疗">💊 医疗</option>
+                                        <option value="教育">📚 教育</option>
+                                        <option value="人情">🧧 人情往来</option>
+                                    </optgroup>
+                                    <optgroup label="🟢 收入">
+                                        <option value="工资">💰 工资</option>
+                                        <option value="兼职">💼 兼职/副业</option>
+                                        <option value="理财">📈 理财收益</option>
+                                        <option value="礼金">🧧 收红包/转账</option>
+                                        <option value="报销">🧾 报销款</option>
+                                        <option value="其他收入">💎 其他收入</option>
+                                    </optgroup>
                                 </select>
                             </div>
 
@@ -80,13 +89,9 @@
                                 <input type="number" id="amount-input" placeholder="金额" style="flex:1">
                             </div>
 
-                            <!-- 标签管理区 -->
                             <div class="tag-manager-row">
-                                <input type="text" id="tags-input" placeholder="🏷️ 标签 (空格分隔)" class="tag-input-field">
-                                <!-- 预设标签云 -->
-                                <div class="tag-cloud" id="tag-cloud">
-                                    <!-- JS 生成: 咖啡 早餐 地铁... -->
-                                </div>
+                                <input type="text" id="tags-input" placeholder="🏷️ 标签 (空格分隔，如: 咖啡 早餐)" class="tag-input-field">
+                                <div class="tag-cloud" id="tag-cloud"></div>
                             </div>
 
                             <div class="row btn-row">
@@ -97,15 +102,15 @@
 
                         <!-- AI 模式 -->
                         <div id="mode-ai" class="input-mode" style="display:none">
-                            <textarea id="ai-input" placeholder="例如：刚才给电动车充电花了1元..."></textarea>
+                            <textarea id="ai-input" placeholder="例如：刚才朋友转给我200元吃饭钱..."></textarea>
                             <button id="ai-btn" class="ai-btn">✨ 识别并保存</button>
                         </div>
                     </div>
 
-                    <!-- 图表区 (自适应填充) -->
+                    <!-- 图表区 -->
                     <div class="card chart-section">
                         <div class="chart-header">
-                            <span>数据分析</span>
+                            <span>📊 点击图表可筛选列表</span>
                             <div class="chart-tabs">
                                 <button class="c-tab active" onclick="switchChart('pie')">构成</button>
                                 <button class="c-tab" onclick="switchChart('line')">趋势</button>
@@ -118,20 +123,25 @@
                 </div>
             </div>
 
-            <!-- === 右侧：账单列表 (变窄，只展示核心) === -->
+            <!-- 右侧：列表 -->
             <div class="right-panel">
                 <div class="card list-card">
                     <div class="list-header">
-                        <input type="text" id="search-input" placeholder="🔍 搜..." class="search-box">
+                        <!-- 新增：全选复选框 (默认隐藏) -->
+                        <div id="select-all-wrapper" style="display:none; align-items:center; margin-right:8px;">
+                            <input type="checkbox" id="select-all-box">
+                        </div>
+                        <input type="text" id="search-input" placeholder="🔍 搜备注或 #标签" class="search-box">
                         <button id="toggle-batch-btn" class="batch-toggle-btn">批量</button>
                     </div>
                     
-                    <!-- 批量操作栏 (默认隐藏) -->
+                    <!-- 批量操作栏 -->
                     <div id="batch-bar" class="batch-bar" style="display:none">
-                        <span id="batch-count">已选 0</span>
-                        <input type="text" id="batch-tag-input" placeholder="输入标签...">
-                        <button onclick="batchAddTags()" class="btn-xs-primary">加标签</button>
-                        <button onclick="batchDelete()" class="btn-xs-danger">删除</button>
+                        <span id="batch-count" style="font-weight:bold; color:#666">0</span>
+                        <input type="text" id="batch-tag-input" placeholder="输入标签名...">
+                        <button onclick="batchAddTags()" class="btn-xs-primary">➕</button>
+                        <button onclick="batchRemoveTags()" class="btn-xs-warning">➖</button>
+                        <button onclick="batchDelete()" class="btn-xs-danger" style="margin-left:auto">🗑️ 删除</button>
                     </div>
 
                     <div class="list-body">
@@ -145,6 +155,6 @@
         </div>
     </div>
 
-    <script type="module" src="app.js?v=V6_Ultimate"></script>
+    <script type="module" src="app.js?v=V8_Fixes"></script>
 </body>
 </html>
