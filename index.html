@@ -3,118 +3,127 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>财务指挥舱</title>
+    <title>财务指挥舱 Pro</title>
     <link rel="stylesheet" href="style.css">
-    <!-- 引入图表库 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
 
     <div class="dashboard-container">
-        <!-- 1. 顶部栏 (变矮一点) -->
+        <!-- 1. 顶部栏：增加了月份选择器 -->
         <header class="top-bar">
-            <div class="logo">
-                🐋 财务指挥舱
+            <div class="logo">🚀 财务指挥舱 Pro</div>
+            <div class="controls">
+                <!-- 关键更新：日期筛选 -->
+                <input type="month" id="month-filter" class="month-picker">
             </div>
-            <div class="user-profile">2026年</div>
         </header>
 
-        <!-- 2. 核心统计 (更紧凑) -->
+        <!-- 2. 统计卡片 (更紧凑) -->
         <div class="stats-row">
-            <div class="card stat-card expense">
-                <div class="stat-icon">💸</div>
-                <div class="stat-info">
-                    <h4>本月支出</h4>
-                    <p id="stat-expense">¥0.00</p>
-                </div>
+            <div class="stat-item">
+                <span class="label">本月支出</span>
+                <span class="val expense" id="stat-expense">¥0.00</span>
             </div>
-            <div class="card stat-card income">
-                <div class="stat-icon">💰</div>
-                <div class="stat-info">
-                    <h4>本月收入</h4>
-                    <p id="stat-income">¥0.00</p>
-                </div>
+            <div class="stat-item">
+                <span class="label">本月收入</span>
+                <span class="val income" id="stat-income">¥0.00</span>
             </div>
-            <div class="card stat-card balance">
-                <div class="stat-icon">🏦</div>
-                <div class="stat-info">
-                    <h4>当前结余</h4>
-                    <p id="stat-balance">¥0.00</p>
-                </div>
+            <div class="stat-item">
+                <span class="label">结余</span>
+                <span class="val balance" id="stat-balance">¥0.00</span>
             </div>
         </div>
 
-        <!-- 3. 主内容区 (锁死高度，内部滚动) -->
+        <!-- 3. 主布局：左右分栏，绝对不许撑破屏幕 -->
         <div class="main-grid">
             
-            <!-- 左列：操作区 -->
-            <div class="left-col">
-                <!-- AI 区域 -->
-                <div class="card ai-card">
-                    <div class="card-header">
-                        <h3>🤖 AI 智能记账</h3>
-                    </div>
-                    <div class="ai-box">
-                        <textarea id="ai-input" placeholder="告诉我也许刚才花了什么..."></textarea>
-                        <button id="ai-btn" class="ai-btn">✨ 识别并入账</button>
-                    </div>
-                </div>
-
-                <!-- 手动输入 -->
-                <div class="card input-card">
-                    <div class="card-header">
-                        <h3>✍️ 手动补录</h3>
-                    </div>
-                    <div class="manual-form">
-                        <div class="form-row">
-                            <input type="datetime-local" id="date-input">
-                            <select id="category-input">
-                                <option value="餐饮">🍔 餐饮</option>
-                                <option value="交通">🚗 交通</option>
-                                <option value="购物">🛍️ 购物</option>
-                                <option value="娱乐">🎮 娱乐</option>
-                                <option value="居住">🏠 居住</option>
-                                <option value="工资">💰 工资</option>
-                                <option value="其他">📝 其他</option>
-                            </select>
+            <!-- === 左侧：操作 & 分析 === -->
+            <div class="left-panel">
+                <!-- 滚动区域 -->
+                <div class="left-scroll-content">
+                    
+                    <!-- A. 输入区 (AI + 手动 整合) -->
+                    <div class="card input-section">
+                        <div class="tab-header">
+                            <button class="tab-btn active" onclick="switchInput('manual')">✍️ 手动</button>
+                            <button class="tab-btn" onclick="switchInput('ai')">🤖 AI 识别</button>
                         </div>
-                        <div class="form-row">
-                            <input type="text" id="desc-input" placeholder="备注" style="flex:2">
-                            <input type="number" id="amount-input" placeholder="¥" style="flex:1">
-                            <button id="save-btn">✔</button>
-                            <button id="cancel-edit-btn" style="display:none">✕</button>
+                        
+                        <!-- 手动模式 -->
+                        <div id="mode-manual" class="input-mode">
+                            <div class="row">
+                                <input type="datetime-local" id="date-input">
+                                <select id="category-input">
+                                    <option value="餐饮">🍔 餐饮</option>
+                                    <option value="交通">🚗 交通</option>
+                                    <option value="购物">🛍️ 购物</option>
+                                    <option value="娱乐">🎮 娱乐</option>
+                                    <option value="居住">🏠 居住</option>
+                                    <option value="工资">💰 工资</option>
+                                    <option value="其他">📝 其他</option>
+                                </select>
+                            </div>
+                            <div class="row">
+                                <input type="text" id="desc-input" placeholder="备注..." style="flex:2">
+                                <input type="number" id="amount-input" placeholder="金额" style="flex:1">
+                                <button id="save-btn">记一笔</button>
+                                <button id="cancel-edit-btn" style="display:none">取消</button>
+                            </div>
+                        </div>
+
+                        <!-- AI 模式 (默认隐藏) -->
+                        <div id="mode-ai" class="input-mode" style="display:none">
+                            <textarea id="ai-input" placeholder="例如：昨天晚上请客吃饭花了400..."></textarea>
+                            <button id="ai-btn" class="ai-btn">✨ 识别并保存</button>
                         </div>
                     </div>
-                </div>
 
-                <!-- 图表 (自适应填充剩余空间) -->
-                <div class="card chart-card">
-                    <div class="card-header">
-                        <h3>📊 支出构成</h3>
-                    </div>
-                    <div class="chart-wrapper">
-                        <canvas id="expenseChart"></canvas>
+                    <!-- B. 图表区 (增加切换功能) -->
+                    <div class="card chart-section">
+                        <div class="chart-header">
+                            <span>数据分析</span>
+                            <div class="chart-tabs">
+                                <button class="c-tab active" onclick="switchChart('pie')">饼图</button>
+                                <button class="c-tab" onclick="switchChart('line')">趋势</button>
+                            </div>
+                        </div>
+                        <div class="chart-body">
+                            <canvas id="mainChart"></canvas>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            <!-- 右列：账单列表 (独立滚动条) -->
-            <div class="right-col">
+            <!-- === 右侧：账单列表 (独立滚动 + 搜索) === -->
+            <div class="right-panel">
                 <div class="card list-card">
-                    <div class="card-header">
-                        <h3>📜 近期账单</h3>
+                    <!-- 搜索栏 -->
+                    <div class="list-header">
+                        <input type="text" id="search-input" placeholder="🔍 搜备注..." class="search-box">
+                        <select id="filter-cat" class="filter-box">
+                            <option value="all">全部分类</option>
+                            <option value="餐饮">🍔 餐饮</option>
+                            <option value="交通">🚗 交通</option>
+                            <option value="购物">🛍️ 购物</option>
+                            <option value="娱乐">🎮 娱乐</option>
+                            <option value="居住">🏠 居住</option>
+                            <option value="工资">💰 工资</option>
+                        </select>
                     </div>
-                    <!-- 列表容器 -->
-                    <div class="list-wrapper">
-                        <ul id="list" class="scrollable-list">
-                            <li class="empty-tip">加载中...</li>
+                    
+                    <!-- 列表滚动区 -->
+                    <div class="list-body">
+                        <ul id="list">
+                            <!-- JS 生成 -->
                         </ul>
                     </div>
                 </div>
             </div>
+
         </div>
     </div>
 
-    <script type="module" src="app.js?v=V3_fixed_layout"></script>
+    <script type="module" src="app.js?v=V4_Pro"></script>
 </body>
 </html>
